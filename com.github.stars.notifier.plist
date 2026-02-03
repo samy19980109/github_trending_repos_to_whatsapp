@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.github.stars.notifier</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/node</string>
+        <string>/Users/samarthagarwal/dev/github_stars/dist/src/index.js</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>21600</integer>
+    <key>WorkingDirectory</key>
+    <string>/Users/samarthagarwal/dev/github_stars</string>
+    <key>StandardOutPath</key>
+    <string>/Users/samarthagarwal/dev/github_stars/logs/launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/samarthagarwal/dev/github_stars/logs/launchd-error.log</string>
+</dict>
+</plist>

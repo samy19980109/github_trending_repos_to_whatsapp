@@ -1,0 +1,18 @@
+{
+  "whatsapp": {
+    "phoneNumber": "919876543210",
+    "markOnlineOnConnect": false,
+    "messageDelay": 300
+  },
+  "github": {
+    "apiUrl": "https://ghapi.huchen.dev/repositories",
+    "topN": 10,
+    "language": "",
+    "since": "daily"
+  },
+  "storage": {
+    "sentReposFile": "./data/sent-repos.json",
+    "authDir": "./auth_info_baileys",
+    "logFile": "./logs/app.log"
+  }
+}
