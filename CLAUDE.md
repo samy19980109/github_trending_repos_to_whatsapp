@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 <claude-mem-context>
 # Recent Activity
 
@@ -12,3 +16,127 @@
 | #5 | " | ✅ | Installed Cheerio library for HTML scraping | ~229 |
 | #3 | 8:44 PM | 🔵 | Current dependencies include trending-github npm library | ~302 |
 </claude-mem-context>
+
+## Project Overview
+
+TypeScript-based WhatsApp notification bot that scrapes GitHub's trending repositories page using Cheerio and sends WhatsApp notifications via Baileys library. Designed to run as a cron job every 6 hours with 24-hour duplicate detection.
+
+## Commands
+
+### Build & Run
+```bash
+npm run build       # Compile TypeScript to dist/
+npm start           # Build and run the notifier once
+npm run dev         # Run with tsx (no build, for development)
+```
+
+### Setup & Testing
+```bash
+npm run setup       # Initial WhatsApp QR authentication (saves to auth_info_baileys/)
+npm run test        # Send test notification with mock data
+tsx scripts/test-scraping.ts  # Test GitHub scraping without WhatsApp
+```
+
+### Monitoring
+```bash
+tail -f logs/app.log              # Application logs
+tail -f logs/launchd.log          # launchd scheduler logs
+cat data/sent-repos.json          # View tracking data
+```
+
+## Architecture
+
+### Core Flow (src/index.ts)
+Main execution follows a 10-step sequential process:
+1. Load config.json
+2. Verify WhatsApp auth exists (auth_info_baileys/)
+3. Fetch trending repos via GitHubService
+4. Load sent-repos tracking data via StorageService
+5. Filter out repos sent in last 24 hours
+6. Exit if no new repos (exit 0)
+7. Connect to WhatsApp (30s timeout)
+8. Send messages with configurable delays (default: 300ms between messages)
+9. Update sent-repos.json with new entries
+10. Disconnect and exit
+
+### Services Layer
+
+**GitHubService** (src/services/github.service.ts)
+- Web scraper using Cheerio (migrated from trending-github npm library)
+- Scrapes https://github.com/trending directly with browser-like headers
+- Parses article.Box-row elements for repo metadata
+- Extracts: fullName, author, name, URL, description, language, stars, starsToday, rank
+- Uses CSS selectors: `h2 a` (links), `p` (descriptions), `[itemprop="programmingLanguage"]` (language), `a[href*="/stargazers"]` (stars)
+- Handles star counts with commas via parseStarCount()
+- 3 retry attempts with 2s delays on failures
+- Note: config.github.apiUrl is obsolete after Cheerio migration but still present in config.json
+
+**WhatsAppService** (src/services/whatsapp.service.ts)
+- Uses @whiskeysockets/baileys for WhatsApp Web protocol
+- Handles QR authentication flow and session persistence
+- Sends individual messages with configurable delays
+- Connection timeout: 30s
+- Logs connection states and errors
+
+**StorageService** (src/services/storage.service.ts)
+- Manages sent-repos.json persistence
+- Filters repos sent within 24 hours based on sentAt timestamp
+- Prevents duplicate notifications
+
+### Data Flow
+
+```
+GitHub.com/trending
+    ↓ (scrape HTML)
+GitHubService → TrendingRepo[]
+    ↓
+StorageService.filterNewRepos() → newRepos[]
+    ↓
+WhatsAppService.sendMessages()
+    ↓
+StorageService.addSentRepos()
+```
+
+## Configuration
+
+**config.json** structure:
+- `whatsapp.phoneNumber`: International format without + (e.g., "919876543210")
+- `whatsapp.messageDelay`: Milliseconds between messages (default: 300)
+- `github.topN`: Number of trending repos to fetch (default: 10)
+- `github.language`: Language filter (empty string = all languages)
+- `github.since`: Trending period ("daily", "weekly", "monthly")
+- `github.apiUrl`: **Obsolete** - not used after Cheerio migration
+- `storage.sentReposFile`: Tracking JSON path (default: "./data/sent-repos.json")
+- `storage.authDir`: WhatsApp credentials dir (default: "./auth_info_baileys")
+
+## TypeScript Types (src/types/index.ts)
+
+**TrendingRepo**: Full repository data from GitHub
+**SentRepo**: Tracking entry with sentAt timestamp
+**SentReposData**: Container for lastCheck + sentRepositories array
+**Config**: Configuration structure
+
+## Dependencies
+
+Key libraries:
+- **@whiskeysockets/baileys**: WhatsApp Web API client
+- **cheerio**: HTML parser for web scraping
+- **axios**: HTTP client for fetching GitHub pages
+- **pino**: Structured logging (outputs to logs/app.log)
+- **qrcode-terminal**: Terminal QR code display for setup
+
+## Authentication & Security
+
+- WhatsApp credentials stored in auth_info_baileys/ (gitignored)
+- config.json contains phone number (gitignored)
+- No API keys required - scrapes public GitHub trending page
+- Uses browser-like User-Agent to avoid blocking
+
+## Scheduling
+
+Designed for launchd (macOS) with 21600s interval (6 hours), but crontab also supported. Application handles single-run execution and exits with status codes (0 = success, 1 = error).
+
+## Known Issues
+
+- config.github.apiUrl field is obsolete but still referenced in type definitions (was used by old trending-github library)
+- Scraping depends on GitHub's HTML structure - CSS selectors may break if GitHub redesigns trending page
