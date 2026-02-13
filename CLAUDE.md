@@ -19,7 +19,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-TypeScript-based WhatsApp notification bot that scrapes GitHub's trending repositories page using Cheerio and sends WhatsApp notifications via Baileys library. Designed to run as a cron job every 6 hours with 24-hour duplicate detection.
+TypeScript-based WhatsApp notification bot that scrapes GitHub's trending repositories page using Cheerio and sends WhatsApp notifications (to a group or individual) via Baileys library. Designed to run as a cron job every 6 hours with 24-hour duplicate detection.
 
 ## Commands
 
@@ -34,6 +34,7 @@ npm run dev         # Run with tsx (no build, for development)
 ```bash
 npm run setup       # Initial WhatsApp QR authentication (saves to auth_info_baileys/)
 npm run test        # Send test notification with mock data
+npm run list-groups # List all WhatsApp groups (to find exact group name)
 tsx scripts/test-scraping.ts  # Test GitHub scraping without WhatsApp
 ```
 
@@ -55,7 +56,8 @@ Main execution follows a 10-step sequential process:
 5. Filter out repos sent in last 24 hours
 6. Exit if no new repos (exit 0)
 7. Connect to WhatsApp (30s timeout)
-8. Send messages with configurable delays (default: 300ms between messages)
+7b. Resolve target JID (group by name via `findGroupByName()`, or direct message via phoneNumber)
+8. Send messages to target with configurable delays (default: 300ms between messages)
 9. Update sent-repos.json with new entries
 10. Disconnect and exit
 
@@ -74,6 +76,8 @@ Main execution follows a 10-step sequential process:
 **WhatsAppService** (src/services/whatsapp.service.ts)
 - Uses @whiskeysockets/baileys for WhatsApp Web protocol
 - Handles QR authentication flow and session persistence
+- Supports sending to groups via `findGroupByName(groupName)` which calls `groupFetchAllParticipating()` and matches by `subject`
+- Falls back to direct message (phoneNumber@s.whatsapp.net) when no groupName configured
 - Sends individual messages with configurable delays
 - Connection timeout: 30s
 - Logs connection states and errors
@@ -100,7 +104,9 @@ StorageService.addSentRepos()
 ## Configuration
 
 **config.json** structure:
-- `whatsapp.phoneNumber`: International format without + (e.g., "919876543210")
+- `whatsapp.phoneNumber`: International format without + (e.g., "919876543210") - used as direct message target when no groupName
+- `whatsapp.groupName`: Exact WhatsApp group name to send to (e.g., "GitHub Trending") - takes priority over phoneNumber
+- `whatsapp.markOnlineOnConnect`: Whether to show online status when connecting (default: false)
 - `whatsapp.messageDelay`: Milliseconds between messages (default: 300)
 - `github.topN`: Number of trending repos to fetch (default: 10)
 - `github.language`: Language filter (empty string = all languages)
@@ -108,6 +114,7 @@ StorageService.addSentRepos()
 - `github.apiUrl`: **Obsolete** - not used after Cheerio migration
 - `storage.sentReposFile`: Tracking JSON path (default: "./data/sent-repos.json")
 - `storage.authDir`: WhatsApp credentials dir (default: "./auth_info_baileys")
+- `storage.logFile`: Log file path (default: "./logs/app.log")
 
 ## TypeScript Types (src/types/index.ts)
 
@@ -119,9 +126,10 @@ StorageService.addSentRepos()
 ## Dependencies
 
 Key libraries:
-- **@whiskeysockets/baileys**: WhatsApp Web API client
+- **@whiskeysockets/baileys**: WhatsApp Web API client (groups + direct messages)
 - **cheerio**: HTML parser for web scraping
 - **axios**: HTTP client for fetching GitHub pages
+- **link-preview-js**: Link preview metadata extraction
 - **pino**: Structured logging (outputs to logs/app.log)
 - **qrcode-terminal**: Terminal QR code display for setup
 

@@ -1,15 +1,16 @@
 # GitHub Stars WhatsApp Notifier
 
-A TypeScript-based cron job that monitors GitHub's top 10 trending repositories and sends WhatsApp notifications via Baileys every 6 hours.
+A TypeScript-based cron job that scrapes GitHub's trending repositories page and sends WhatsApp notifications (to a group or individual) via Baileys every 6 hours.
 
 ## Features
 
-- 📊 Fetches top 10 trending GitHub repositories
-- 📱 Sends WhatsApp notifications using Baileys
+- 📊 Scrapes top 10 trending GitHub repositories using Cheerio
+- 📱 Sends WhatsApp notifications using Baileys (group or direct message)
 - 🔄 Runs as a cron job every 6 hours
 - 🎯 Avoids duplicate notifications (24-hour window)
 - 🗄️ Persistent storage for tracking sent repos
-- 🔐 Secure WhatsApp authentication
+- 🔐 Secure WhatsApp authentication with session persistence
+- 👥 WhatsApp group support - send to a group by name
 
 ## Prerequisites
 
@@ -36,20 +37,43 @@ A TypeScript-based cron job that monitors GitHub's top 10 trending repositories 
 
 ## Configuration
 
-1. **Edit `config.json`** and set your phone number:
-   ```json
-   {
-     "whatsapp": {
-       "phoneNumber": "919876543210",  // Your number in international format
-       ...
-     }
-   }
-   ```
+Edit `config.json` to configure the notifier:
 
-   Format: Country code + number (no spaces, no +)
-   Examples:
-   - India: `919876543210`
-   - US: `12025551234`
+```json
+{
+  "whatsapp": {
+    "phoneNumber": "919876543210",
+    "groupName": "GitHub Trending",
+    "markOnlineOnConnect": false,
+    "messageDelay": 300
+  },
+  "github": {
+    "topN": 10,
+    "language": "",
+    "since": "daily"
+  },
+  "storage": {
+    "sentReposFile": "./data/sent-repos.json",
+    "authDir": "./auth_info_baileys",
+    "logFile": "./logs/app.log"
+  }
+}
+```
+
+### WhatsApp target
+
+- **Group mode** (recommended): Set `groupName` to the exact name of a WhatsApp group you're a member of. Messages will be sent to that group.
+- **Direct message mode**: Remove or leave `groupName` empty. Messages will be sent to `phoneNumber` directly.
+
+Phone number format: Country code + number (no spaces, no `+`)
+- India: `919876543210`
+- US: `12025551234`
+
+### GitHub settings
+
+- `topN`: Number of trending repos to fetch (default: 10)
+- `language`: Filter by language (empty string = all languages)
+- `since`: Trending period - `"daily"`, `"weekly"`, or `"monthly"`
 
 ## Setup
 
@@ -64,14 +88,19 @@ A TypeScript-based cron job that monitors GitHub's top 10 trending repositories 
    - Save credentials to `auth_info_baileys/`
    - Send a test message to verify connection
 
-2. **Test notifications**:
+2. **List your WhatsApp groups** (to find the exact group name):
+   ```bash
+   npm run list-groups
+   ```
+
+3. **Test notifications**:
    ```bash
    npm run test
    ```
 
    This sends a mock trending repo notification to verify everything works.
 
-3. **Manual run**:
+4. **Manual run**:
    ```bash
    npm start
    ```
@@ -173,22 +202,24 @@ ls -la auth_info_baileys/
 ## Project Structure
 
 ```
-/Users/samarthagarwal/dev/github_stars/
+github_stars/
 ├── package.json
 ├── tsconfig.json
 ├── .gitignore
 ├── config.json                    # Your configuration
 ├── config.example.json            # Template
 ├── README.md
+├── CLAUDE.md                      # AI assistant guidance
 ├── src/
 │   ├── index.ts                   # Main entry point
 │   ├── services/
-│   │   ├── github.service.ts      # Fetch trending repos
-│   │   ├── whatsapp.service.ts    # WhatsApp messaging
+│   │   ├── github.service.ts      # Scrape trending repos (Cheerio)
+│   │   ├── whatsapp.service.ts    # WhatsApp messaging + groups
 │   │   └── storage.service.ts     # Track sent repos
 │   ├── types/
 │   │   └── index.ts               # TypeScript interfaces
 │   └── utils/
+│       ├── config-loader.ts       # Configuration loading
 │       ├── logger.ts              # Pino logging
 │       └── formatter.ts           # Message formatting
 ├── data/
@@ -198,7 +229,9 @@ ls -la auth_info_baileys/
 ├── auth_info_baileys/             # WhatsApp credentials
 └── scripts/
     ├── setup.ts                   # QR code authentication
-    └── test-notification.ts       # Test script
+    ├── test-notification.ts       # Test notification script
+    ├── test-scraping.ts           # Test GitHub scraping only
+    └── list-groups.ts             # List WhatsApp groups
 ```
 
 ## Troubleshooting
@@ -218,6 +251,14 @@ npm run setup
 2. Verify phone number format in `config.json`
 3. Run test: `npm run test`
 4. Check if WhatsApp Web is working on your phone
+
+### Group Not Found
+
+If you get `WhatsApp group "..." not found`:
+
+1. Verify the exact group name with `npm run list-groups`
+2. Ensure the `groupName` in `config.json` matches exactly (case-sensitive)
+3. Confirm you are a member of the group
 
 ### Cron Not Running
 
@@ -249,19 +290,31 @@ npm run dev
 
 This uses `tsx` to run TypeScript directly without building.
 
-### Modify Configuration
+### Test Scraping Only
 
-Edit `config.json` to change:
-- Phone number
-- Message delay (default: 300ms)
-- Number of top repos (default: 10)
-- GitHub API parameters
+```bash
+tsx scripts/test-scraping.ts
+```
+
+Tests the GitHub trending page scraper without sending any WhatsApp messages.
+
+### Available Scripts
+
+| Script | Command | Description |
+|--------|---------|-------------|
+| `build` | `npm run build` | Compile TypeScript to `dist/` |
+| `start` | `npm start` | Build and run the notifier once |
+| `dev` | `npm run dev` | Run with tsx (no build step) |
+| `setup` | `npm run setup` | WhatsApp QR code authentication |
+| `test` | `npm run test` | Send test notification with mock data |
+| `list-groups` | `npm run list-groups` | List all WhatsApp groups you're in |
 
 ## Security Notes
 
 - `auth_info_baileys/` contains WhatsApp credentials - keep it secure
 - `config.json` contains your phone number - don't commit to git
 - All sensitive files are in `.gitignore`
+- No API keys required - scrapes the public GitHub trending page
 
 ## License
 
