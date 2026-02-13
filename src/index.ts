@@ -43,9 +43,17 @@ async function main() {
     const whatsappService = new WhatsAppService(config);
     await whatsappService.connect(30000);
 
+    // 7b. Resolve target JID (group or direct message)
+    let targetJid: string;
+    if (config.whatsapp.groupName) {
+      targetJid = await whatsappService.findGroupByName(config.whatsapp.groupName);
+    } else {
+      targetJid = `${config.whatsapp.phoneNumber}@s.whatsapp.net`;
+    }
+
     // 8. Send messages with delays
     const messages = newRepos.map((repo) => formatIndividualMessage(repo));
-    await whatsappService.sendMessages(config.whatsapp.phoneNumber, messages);
+    await whatsappService.sendMessages(targetJid, messages);
 
     // 9. Update sent repos JSON
     storageService.addSentRepos(newRepos);

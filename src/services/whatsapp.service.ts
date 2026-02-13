@@ -83,28 +83,45 @@ export class WhatsAppService {
     });
   }
 
-  public async sendMessage(phoneNumber: string, message: string): Promise<void> {
+  public async findGroupByName(groupName: string): Promise<string> {
+    if (!this.sock) {
+      throw new Error('WhatsApp not connected');
+    }
+
+    logger.info({ groupName }, 'Searching for WhatsApp group');
+    const groups = await this.sock.groupFetchAllParticipating();
+
+    for (const [jid, metadata] of Object.entries(groups)) {
+      if (metadata.subject === groupName) {
+        logger.info({ groupName, jid }, 'Found WhatsApp group');
+        return jid;
+      }
+    }
+
+    throw new Error(`WhatsApp group "${groupName}" not found. Create the group first, then retry.`);
+  }
+
+  public async sendMessage(jid: string, message: string): Promise<void> {
     if (!this.sock) {
       throw new Error('WhatsApp not connected');
     }
 
     try {
-      const jid = `${phoneNumber}@s.whatsapp.net`;
       await this.sock.sendMessage(jid, { text: message });
-      logger.info({ phoneNumber }, 'Message sent successfully');
+      logger.info({ jid }, 'Message sent successfully');
     } catch (error) {
-      logger.error({ error, phoneNumber }, 'Failed to send message');
+      logger.error({ error, jid }, 'Failed to send message');
       throw error;
     }
   }
 
   public async sendMessages(
-    phoneNumber: string,
+    jid: string,
     messages: string[]
   ): Promise<void> {
     for (let i = 0; i < messages.length; i++) {
       try {
-        await this.sendMessage(phoneNumber, messages[i]);
+        await this.sendMessage(jid, messages[i]);
 
         // Add delay between messages (except after the last one)
         if (i < messages.length - 1) {

@@ -8,7 +8,8 @@
     "start": "npm run build && node dist/src/index.js",
     "setup": "tsx scripts/setup.ts",
     "test": "tsx scripts/test-notification.ts",
-    "dev": "tsx src/index.ts"
+    "dev": "tsx src/index.ts",
+    "list-groups": "tsx scripts/list-groups.ts"
   },
   "keywords": [],
   "author": "",

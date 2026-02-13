@@ -26,6 +26,7 @@ export interface SentReposData {
 export interface Config {
   whatsapp: {
     phoneNumber: string;
+    groupName: string;
     markOnlineOnConnect: boolean;
     messageDelay: number;
   };

@@ -18,7 +18,6 @@ async function testNotification() {
     process.exit(1);
   }
 
-  console.log('📱 Phone number:', config.whatsapp.phoneNumber);
   console.log('⏳ Connecting to WhatsApp...\n');
 
   try {
@@ -26,6 +25,17 @@ async function testNotification() {
     await whatsappService.connect(30000);
 
     console.log('✅ Connected!\n');
+
+    // Resolve target JID (group or direct message)
+    let targetJid: string;
+    if (config.whatsapp.groupName) {
+      targetJid = await whatsappService.findGroupByName(config.whatsapp.groupName);
+      console.log(`📱 Sending to group: ${config.whatsapp.groupName}\n`);
+    } else {
+      targetJid = `${config.whatsapp.phoneNumber}@s.whatsapp.net`;
+      console.log(`📱 Sending to phone: ${config.whatsapp.phoneNumber}\n`);
+    }
+
     console.log('📤 Sending test notification...\n');
 
     // Create a mock trending repo
@@ -42,7 +52,7 @@ async function testNotification() {
     };
 
     const message = formatIndividualMessage(mockRepo);
-    await whatsappService.sendMessage(config.whatsapp.phoneNumber, message);
+    await whatsappService.sendMessage(targetJid, message);
 
     console.log('✅ Test notification sent successfully!\n');
     console.log('📱 Check your WhatsApp to verify the message was received.\n');
