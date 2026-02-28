@@ -1,7 +1,8 @@
-import makeWASocket, { useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
+import makeWASocket, { useMultiFileAuthState, DisconnectReason, Browsers, fetchLatestWaWebVersion } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import { resolve } from 'path';
 import * as qrcode from 'qrcode-terminal';
+import pino from 'pino';
 import { loadConfig } from '../src/utils/config-loader';
 
 async function setup() {
@@ -17,8 +18,16 @@ async function setup() {
 
   const { state, saveCreds } = await useMultiFileAuthState(config.storage.authDir);
 
+  // Fetch latest WhatsApp Web version
+  const { version } = await fetchLatestWaWebVersion();
+
   const sock = makeWASocket({
     auth: state,
+    logger: pino({ level: 'silent' }),
+    connectTimeoutMs: 60000,
+    keepAliveIntervalMs: 30000,
+    browser: Browsers.macOS('Chrome'),
+    version: version,
   });
 
   sock.ev.on('creds.update', saveCreds);

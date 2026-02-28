@@ -4,6 +4,8 @@ import makeWASocket, {
   WASocket,
   ConnectionState,
   proto,
+  fetchLatestWaWebVersion,
+  Browsers,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import { logger } from '../utils/logger';
@@ -25,11 +27,17 @@ export class WhatsAppService {
         this.config.storage.authDir
       );
 
+      const { version } = await fetchLatestWaWebVersion();
+
       this.sock = makeWASocket({
         auth: state,
         printQRInTerminal: false,
         markOnlineOnConnect: this.config.whatsapp.markOnlineOnConnect,
         logger: logger.child({ module: 'baileys' }),
+        connectTimeoutMs: 60000,
+        keepAliveIntervalMs: 30000,
+        browser: Browsers.macOS('Chrome'),
+        version: version,
       });
 
       this.sock.ev.on('creds.update', saveCreds);
